@@ -21,7 +21,11 @@ fetch('https://jobs.tut.by/catalog/Informacionnye-tehnologii-Internet-Telekom/Na
                     function(body) {
                         const $ = cheerio.load(body);
                         const name = $('h1.header').text();
-                        console.log(name);
+                              salary = $('p.vacancy-salary').text();
+                              experience = $('span[data-qa = "vacancy-experience"]').text();
+                              company = $('span[itemprop = "name"]').text();
+                              employment = $('p[data-qa = "vacancy-view-employment-mode"]').text();
+                        console.log(name, '|', company, '|', employment, '| Опыт:', experience, '| З/п:', salary);
                     }
                 )
         })
