@@ -5,8 +5,8 @@ const fs = require('fs');
 const obj = {
     table: []
 };
-for (let i = 0; i < 8; i++) {
-fetch(`https://jobs.tut.by/catalog/Informacionnye-tehnologii-Internet-Telekom/Nachalnyj-uroven/page-${i}`)
+
+fetch(`https://jobs.tut.by/search/resume?L_is_autosearch=false&area=1002&clusters=true&currency_code=BYR&no_magic=false&order_by=relevance&search_period=30&page=0`)
     .then (
         function(response) {
             return response.text();
@@ -14,9 +14,9 @@ fetch(`https://jobs.tut.by/catalog/Informacionnye-tehnologii-Internet-Telekom/Na
     )
     .then (function(body) {
         const $ = cheerio.load(body);
-        $('.resume-search-item__name').each((i, el) => {
+        $('div.resume-search-item__header').each((i, el) => {
             const link = $(el).find('a').attr('href');
-            fetch(`${link}`)
+            fetch(`https://jobs.tut.by${link}`)
                 .then (
                     function(response) {
                         return response.text();
@@ -25,18 +25,16 @@ fetch(`https://jobs.tut.by/catalog/Informacionnye-tehnologii-Internet-Telekom/Na
                 .then (
                     function(body) {
                         const $ = cheerio.load(body);
-                        const name = $('h1.header').text(),
-                              salary = $('p.vacancy-salary').text(),
-                              experience = $('span[data-qa = "vacancy-experience"]').text(),
-                              company = $('span[itemprop = "name"]').text(),
-                              employment = $('p[data-qa = "vacancy-view-employment-mode"]').text(),
-                              date = $('p.vacancy-creation-time').text(); 
-                        obj.table.push({Name: name, Salary: salary});
-                        const json = JSON.stringify(obj);                               
+                        const name = $('span[data-qa="resume-block-title-position"]').text(),
+                              gender = $('span[itemprop = "gender"]').text(),
+                              age = $('span[data-qa = "resume-personal-age"]').text(),
+                              about = $('div[data-qa="resume-block-skills-content"]').text(),
+                              education = $('div[itemprop = "alumniOf"]').text();
+                              salary = $('span[data-qa="resume-block-salary"]').text();
+                        obj.table.push({Name: name, Gender: gender, Age: age, Education: education, Salary: salary, About: about});
+                        const json = JSON.stringify(obj);
                         fs.writeFileSync('result.json', json);
-                        console.log(name, '|', company, '|', employment, '| Опыт:', experience, '| З/п:', salary, '|', date);
                     }
                 )
         })
     });
-}
