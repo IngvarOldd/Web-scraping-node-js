@@ -6,7 +6,8 @@
   "dependencies": {
     "dom-parser": "^0.1.6",
     "fs": "0.0.1-security",
-    "node-fetch": "^2.6.0"
+    "needle": "^2.4.0",
+    "tress": "^1.1.4"
   },
   "devDependencies": {},
   "scripts": {

@@ -1,68 +1,81 @@
-const fetch = require('node-fetch');
+const tress = require('tress');
+const needle = require('needle');
+const fs = require('fs');
 const DomParser = require('dom-parser');
 const parser = new DomParser();
-const fs = require('fs');
+const URL = 'https://jobs.tut.by/search/resume?L_is_autosearch=false&area=1002&clusters=true&currency_code=BYR&experience=noExperience&no_magic=false&order_by=relevance&search_period=30&skill=3864&page=0';
+const result = [];
 
-const obj = {
-    table: []
-};
+const queryMain = tress( (url, callback) => {
+  needle(url, (err, res) => {
+    if(err) throw err;
 
-fetch(`https://jobs.tut.by/search/resume?L_is_autosearch=false&area=1002&clusters=true&currency_code=BYR&no_magic=false&order_by=relevance&search_period=30&page=1`)
-    .then (
-      function(response) {
-        return response.text();
-      }
-    )
-    .then (
-      function(body) {
-        const doc = parser.parseFromString(body);
-        const elems = doc.getElementsByClassName('resume-search-item__name');
-        const arr = Array.from(elems);  
-        arr.forEach(
-          (element) => {
-            let href = element.getAttribute('href');
-            fetch(`https://jobs.tut.by${href}`)
-              .then(
-                function(response) {
-                  return response.text();
-                }
-              )
-              .then(
-                function(body) {
-                  const doc = parser.parseFromString(body);
-                  const names = Array.from(doc.getElementsByClassName('header'));
-                  let name = names[0].textContent;
-                  const bio = Array.from(doc.getElementsByClassName('resume-header-block'));
-                  let gender = bio[0].firstChild.firstChild.textContent;
-                  let age;
-                  if (typeof(bio[0].firstChild.childNodes[2]) !== 'undefined') {
-                    age = bio[0].firstChild.childNodes[2].textContent.replace(/[<!-- -->]/g, '');
-                  } else {
-                    age = "Возраст не указан";
-                  }
-                  let skills = Array.from(doc.getElementsByClassName('bloko-tag__section bloko-tag__section_text'));
-                  skills = skills.map( (el) => el.textContent );
-                  const work = Array.from(doc.getElementsByClassName('resume-block-container'));
-                  let employment, schedule;
-                  if(typeof(work[0].childNodes[1]) === 'undefined') {
-                    employment = work[1].childNodes[1].textContent.replace(/[<!-- -->]/g, ' ');
-                    schedule = work[1].lastChild.textContent.replace(/[<!-- -->]/g, ' ');
-                  } else {
-                    employment = work[0].childNodes[1].textContent.replace(/[<!-- -->]/g, ' ');
-                    schedule = work[0].lastChild.textContent.replace(/[<!-- -->]/g, ' ');
-                  }
-                  obj.table.push({Name: name, Gender: gender, Age: age, Employment: employment, Schedule: schedule, Skills: skills});
-                }
-              )
-          }
-        )
-      }
-    )
+    const document = parser.parseFromString(res.body);
+    const resumeArr = Array.from(document.getElementsByClassName('resume-search-item__name'));
+    resumeArr.forEach( (el)=> {
+      queryResume.push(`https://jobs.tut.by${el.getAttribute('href')}`);
+    } )
+
+    const nextPage = Array.from(document.getElementsByClassName('bloko-button.HH-Pager-Controls-Next'));
+    nextPage.forEach((el) => {
+      url = (`https://jobs.tut.by${el.getAttribute('href')}`);
+      queryMain.push(url);
+
+    })
+
+  })
+  callback();
+} )
+
+const queryResume = tress( (url, callback) => {
+  needle(url, (err, res) => {
+    if(err) throw err;
     
-setTimeout(
-  function() {
-    const json = JSON.stringify(obj);
-    fs.writeFileSync('result.json', json);
-  },
-  2000
-)
+    const document = parser.parseFromString(res.body);
+    
+    //Name
+    const nameArr = Array.from(document.getElementsByTagName('title'));
+    let name = nameArr[0].innerHTML;
+    nameArr.forEach((el) => {
+      name = el.innerHTML;
+    })
+
+    //Salary
+    const salaryArr = Array.from(document.getElementsByClassName('resume-block__salary'));
+    let salary;
+    salaryArr.forEach((el) => {
+      salary = el.innerHTML;
+    })
+    
+    //Gender&Age 
+    const bio = Array.from(document.getElementsByClassName('resume-header-block'));
+    let gender, birth;
+    bio.forEach((el) => {
+      gender = el.firstChild.firstChild.innerHTML;
+      birth = el.firstChild.lastChild.getAttribute('content');
+    })
+
+    switch (undefined) {
+    case (name): name = "Not mentioned";
+      break;
+    case (salary): salary = "Not mentioned";
+      break;
+    case (gender): gender = "Not mentioned";
+      break;
+    }
+    if(birth === null) {
+      birth = "Not mentioned";
+    }
+
+  result.push({ name, salary, gender, birth });
+  })
+  callback();
+} )
+
+queryMain.drain = function () {
+  queryResume.drain = function () {
+    fs.writeFileSync('result.json', JSON.stringify(result, null, 4));
+  }
+}
+
+queryMain.push(URL);
